@@ -205,3 +205,41 @@ test("Детали остаются внутри полезной области
   }
   assert.equal(count, 12);
 });
+
+test("Дробная деталь точно по полезному размеру помещается в лист", () => {
+  const a = app(); a.sheet(1918.6, 1728.8, 4.7, 3.7);
+  a.part({ w: 1911.2, h: 1721.4 });
+  assert.equal(a.run("result.count"), 1);
+  assert.equal(a.run("result.failed.length"), 0);
+  assert.equal(a.run("result.sheets.length"), 1);
+  assert.equal(a.run("result.sheets[0].free.length"), 0);
+  assert.equal(a.get("warn").textContent, "");
+});
+
+test("Дробные детали и пропил ровно заполняют один лист по обеим осям", () => {
+  for (const vertical of [false, true]) {
+    const a = app(); a.sheet(vertical ? 1830 : 2750, vertical ? 2750 : 1830, 3.2, 10);
+    const parts = [1000.1, 1726.7].map(size => ({
+      n: "", w: vertical ? 1810 : size, h: vertical ? size : 1810,
+      q: 1, tex: true, e: [1, 2, 0, 0]
+    }));
+    a.run(`parts = ${JSON.stringify(parts)}; renderParts(); calc();`);
+    assert.equal(a.run("result.sheets.length"), 1);
+    assert.equal(a.run("result.count"), 2);
+    assert.equal(a.run("result.failed.length"), 0);
+    assert.equal(a.run("result.sheets[0].free.length"), 0);
+    assert.equal(a.run("result.edge[1]"), vertical ? 3620 : 2726.8);
+    assert.equal(a.run("result.edge[2]"), vertical ? 2726.8 : 3620);
+  }
+});
+
+test("Допуск дробных вычислений не разрешает реальное превышение размера", () => {
+  for (const dims of [{ w: 1911.201, h: 1721.4 }, { w: 1911.2, h: 1721.401 }]) {
+    const a = app(); a.sheet(1918.6, 1728.8, 4.7, 3.7); a.part(dims);
+    assert.equal(a.run("result.failed.length"), 1);
+    assert.equal(a.run("result.count"), 0);
+  }
+  const a = app(); a.sheet(2750, 1830, 3.2, 10);
+  a.run('parts = [1000.1, 1726.701].map(w => ({...newPart(), w, h: 1810})); renderParts(); calc();');
+  assert.equal(a.run("result.sheets.length"), 2);
+});

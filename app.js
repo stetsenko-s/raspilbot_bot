@@ -166,6 +166,11 @@ $("pasteBtn").onclick = () => {
 // ---------- Раскрой: гильотина (все резы сквозные, как на форматке) ----------
 function pack(items, W, H, kerf, trim) {
   const uw = W - 2 * trim, uh = H - 2 * trim;             // полезная область листа
+  const epsilon = 1e-7; // мм: допуск только для погрешности вычислений дробных размеров
+  const remainder = (available, required) => {
+    const rest = available - required;
+    return rest > epsilon ? rest : 0;
+  };
   const sheets = [], failed = [];
   // К свободной области прибавляем пропил: последней детали в ряду он не нужен
   const fresh = () => ({ free: [[trim, trim, uw + kerf, uh + kerf]], placed: [] });
@@ -175,8 +180,8 @@ function pack(items, W, H, kerf, trim) {
     const or = [[it.w, it.h, false]];
     if (!it.tex && it.w !== it.h) or.push([it.h, it.w, true]);   // поворот только без текстуры
     s.free.forEach((f, i) => or.forEach(([w, h, t]) => {
-      if (w + kerf <= f[2] && h + kerf <= f[3]) {
-        const sc = Math.min(f[2] - w - kerf, f[3] - h - kerf);
+      if (w + kerf <= f[2] + epsilon && h + kerf <= f[3] + epsilon) {
+        const sc = Math.min(remainder(f[2], w + kerf), remainder(f[3], h + kerf));
         if (!best || sc < best.sc) best = { sc, i, w, h, t };
       }
     }));
@@ -185,7 +190,7 @@ function pack(items, W, H, kerf, trim) {
   // Кладём деталь и делим остаток на два прямоугольника сквозным резом
   function put(s, it, b) {
     const [fx, fy, fw, fh] = s.free.splice(b.i, 1)[0];
-    const pw = b.w + kerf, ph = b.h + kerf, rw = fw - pw, rh = fh - ph;
+    const pw = b.w + kerf, ph = b.h + kerf, rw = remainder(fw, pw), rh = remainder(fh, ph);
     const [r, d] = rw < rh ? [[fx + pw, fy, rw, ph], [fx, fy + ph, fw, rh]]
                            : [[fx + pw, fy, rw, fh], [fx, fy + ph, pw, rh]];
     [r, d].forEach(x => { if (x[2] > 0 && x[3] > 0) s.free.push(x); });
