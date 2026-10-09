@@ -24,14 +24,15 @@ GitHub Pages размещает статические файлы; Python-бот
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 
-$env:BOT_TOKEN = "ВАШ_ТОКЕН"
-$env:WEBAPP_URL = "https://LOGIN.github.io/REPOSITORY/"
-.\.venv\Scripts\python.exe bot.py
+.\.venv\Scripts\python.exe run_bot.py
 ```
 
-`.env.example` содержит только пример: текущий код не загружает `.env` автоматически.
-Переменные окружения выше задаются для текущего окна PowerShell.
+Перед первым запуском создайте локальный `.env` по образцу `.env.example` и заполните `BOT_TOKEN` и `WEBAPP_URL`.
+`run_bot.py` читает этот файл автоматически; переменные окружения, если они уже заданы, имеют приоритет.
+Не загружайте заполненный `.env` на GitHub — он исключён через `.gitignore`.
 Если `.venv` уже существует, повторно создавать её не нужно.
+
+Для этого проекта адрес приложения: https://stetsenko-s.github.io/raspilbot_bot/.
 
 Откройте личный чат с ботом, отправьте `/start` и нажмите «Открыть раскрой».
 Оставьте процесс бота запущенным; остановка — Ctrl+C. Пока компьютер выключен или спит, бот не отвечает на новые команды.
