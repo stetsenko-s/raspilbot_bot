@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>Раскрой ЛДСП</title>
+<!-- Официальный SDK Telegram Mini Apps -->
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="stylesheet" href="styles.css">
+<script src="app.js" defer></script>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Сводка: полоса заполнения листов + главные цифры -->
+  <div class="sum">
+    <div class="bar"><i id="barFill"></i></div>
+    <div class="nums">
+      <span><b id="nSheets">0</b> лист.</span>
+      <span>занято <b id="nFill">0%</b> · отход <b id="nWaste">0%</b></span>
+      <span>кромка <b id="nEdge">—</b></span>
+    </div>
+    <div class="warn" id="warn" role="status" aria-live="polite"></div>
+  </div>
+
+  <!-- Ввод параметров и деталей -->
+  <div id="viewIn">
+    <div class="card g">
+      <div class="full"><label>Лист, мм</label>
+        <select id="preset">
+          <option value="2750x1830">2750×1830 (Egger / Kronospan)</option>
+          <option value="2800x2070">2800×2070 (большой)</option>
+          <option value="2440x1830">2440×1830</option>
+          <option value="2440x1220">2440×1220 (ХДФ / фанера)</option>
+          <option value="3050x1220">3050×1220</option>
+          <option value="custom">Свой размер</option>
+        </select></div>
+      <div><label>Длина листа</label><input id="W" type="number" inputmode="decimal" min="0" step="any"></div>
+      <div><label>Ширина листа</label><input id="H" type="number" inputmode="decimal" min="0" step="any"></div>
+      <div><label>Толщина, мм</label><input id="T" type="number" inputmode="decimal" min="0" step="any" value="16"></div>
+      <div><label>Пропил, мм</label><input id="kerf" type="number" inputmode="decimal" min="0" step="any" value="4"></div>
+      <div><label>Обрезка листа, мм</label><input id="trim" type="number" inputmode="decimal" min="0" step="any" value="10"></div>
+      <div><label>Запас кромки, %</label><input id="res" type="number" inputmode="decimal" min="0" step="any" value="10"></div>
+    </div>
+
+    <div class="card">
+      <h2>Детали</h2>
+      <p class="hint">Количество: от 1 до 500 шт. в строке, максимум 5000 деталей в проекте.</p>
+      <div id="parts"></div>
+      <button class="btn" id="add">+ Добавить деталь</button>
+      <details style="margin-top:10px"><summary style="color:var(--mute)">Вставить из Excel</summary>
+        <p class="hint">Столбцы: название, длина, ширина, количество. Разделитель — табуляция или «;». Можно вставить только длину, ширину и количество. Без количества — 1 шт. Для числового названия используйте все четыре столбца.</p>
+        <textarea id="paste" rows="4"></textarea>
+        <button class="btn ghost" id="pasteBtn">Добавить из текста</button>
+        <p id="pasteStatus" class="import-status" role="status" aria-live="polite" hidden></p>
+      </details>
+    </div>
+  </div>
+
+  <!-- Карта раскроя под полями ввода -->
+  <div id="viewMap">
+    <h2>Карта раскроя</h2>
+    <div class="sheets" id="sheetTabs"></div>
+    <div id="mapBox"></div>
+  </div>
+</div>
+
+</body>
+</html>

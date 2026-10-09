@@ -1,0 +1,63 @@
+  /* Цвета берём из темы Telegram: приложение само подстраивается под светлую/тёмную тему */
+  :root {
+    --bg: var(--tg-theme-bg-color, #ffffff);
+    --card: var(--tg-theme-secondary-bg-color, #f1f1f4);
+    --ink: var(--tg-theme-text-color, #14202b);
+    --mute: var(--tg-theme-hint-color, #7a8590);
+    --acc: var(--tg-theme-button-color, #2481cc);
+    --accfg: var(--tg-theme-button-text-color, #ffffff);
+    --line: color-mix(in srgb, var(--ink) 14%, transparent);
+    --part: color-mix(in srgb, var(--acc) 24%, var(--bg));   /* заливка деталей на карте */
+    --waste: color-mix(in srgb, var(--mute) 14%, var(--bg)); /* цвет отхода */
+    --e04: #f08a24;   /* кромка 0,4 мм */
+    --e2:  #d6336c;   /* кромка 2 мм */
+    --warn: #e5484d;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); }
+  body { font: 15px/1.4 -apple-system, "Segoe UI", Roboto, system-ui, sans-serif;
+         padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px); }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 0 12px 24px; }
+
+  /* Липкая сводка: всегда на виду, пока вводите детали */
+  .sum { position: sticky; top: 0; z-index: 5; background: var(--bg); padding: 10px 0 8px; border-bottom: 1px solid var(--line); }
+  .bar { height: 14px; border-radius: 7px; background: var(--waste); overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; background: var(--acc); transition: width .25s; }
+  .nums { display: flex; justify-content: space-between; gap: 8px; margin-top: 6px; font-size: 13px; color: var(--mute); }
+  .nums b { color: var(--ink); font-size: 16px; }
+  .warn { color: var(--warn); font-size: 13px; margin-top: 6px; white-space: pre-line; }
+  .hint { color: var(--mute); font-size: 12px; margin: 8px 0; }
+  .import-status { color: var(--mute); font-size: 12px; white-space: pre-line; margin: 8px 0 0; }
+  .import-status.error { color: var(--warn); }
+
+  #viewIn { margin-top: 12px; }
+
+  .card { background: var(--card); border-radius: 12px; padding: 12px; margin-bottom: 12px; }
+  h2 { font-size: 14px; margin: 0 0 10px; }
+  .g { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; } .full { grid-column: 1 / -1; }
+  label { display: block; font-size: 12px; color: var(--mute); margin-bottom: 3px; }
+  input[type=number], input[type=text], select, textarea { width: 100%; padding: 9px 10px; font: inherit; font-size: 16px;
+    color: var(--ink); background: var(--bg); border: 1px solid transparent; border-radius: 8px; }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--acc); }
+  input[aria-invalid="true"] { border-color: var(--warn); }
+
+  /* Карточка детали */
+  .part { background: var(--bg); border-radius: 10px; padding: 10px; margin-bottom: 8px; }
+  .r2 { display: grid; grid-template-columns: 1fr 1fr 64px; gap: 6px; margin-top: 6px; }
+  .r3 { display: flex; align-items: center; gap: 6px; margin-top: 8px; flex-wrap: wrap; font-size: 12px; color: var(--mute); }
+  .eb { min-width: 44px; height: 34px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink); font: inherit; font-size: 12px; }
+  .eb.s1 { background: var(--e04); border-color: var(--e04); color: #fff; }
+  .eb.s2 { background: var(--e2); border-color: var(--e2); color: #fff; }
+  .x { margin-left: auto; border: 0; background: none; color: var(--mute); font-size: 22px; padding: 0 6px; }
+  .btn { width: 100%; padding: 12px; border-radius: 10px; border: 0; background: var(--acc); color: var(--accfg); font: inherit; font-weight: 600; }
+  .btn.ghost { background: var(--bg); color: var(--ink); border: 1px dashed var(--line); margin-top: 8px; }
+
+  /* Карта листа */
+  .sheets { display: flex; gap: 6px; overflow-x: auto; margin-bottom: 10px; }
+  .sheets button { flex: 0 0 auto; padding: 7px 12px; border-radius: 16px; border: 0; background: var(--card); color: var(--ink); font: inherit; font-size: 13px; }
+  .sheets button.on { background: var(--acc); color: var(--accfg); }
+  svg { width: 100%; height: auto; display: block; border-radius: 8px; background: var(--waste); }
+  .leg { font-size: 12px; color: var(--mute); display: flex; gap: 14px; flex-wrap: wrap; margin-top: 8px; }
+  .sw { display: inline-block; width: 14px; height: 4px; vertical-align: middle; margin-right: 5px; border-radius: 2px; }
+  .empty { text-align: center; color: var(--mute); padding: 40px 10px; }
+  [hidden] { display: none !important; }
