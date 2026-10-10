@@ -4,21 +4,39 @@ if (tg) { tg.ready(); tg.expand(); }                       // раскрывае
 const haptic = () => { try { tg.HapticFeedback.selectionChanged(); } catch (e) {} }; // лёгкая вибрация при тапе
 
 // ---------- Состояние ----------
-// Деталь: {n: название, w: длина, h: ширина, q: кол-во, tex: текстура, e: [верх, право, низ, лево]; 0/1/2 = нет / 0,4 / 2 мм}
-function newPart() { return { n: "", w: "", h: "", q: 1, tex: true, e: [0, 0, 0, 0] }; }
+// w/h — готовая деталь. e: [верх, право, низ, лево]; коды 1/2 сохранены для старых проектов.
+function newPart() { return { n: "", w: "", h: "", q: 1, tex: true, edgeEnabled: false, e: [0, 0, 0, 0] }; }
 const $ = id => document.getElementById(id);
-const SIDE = ["В", "П", "Н", "Л"];                         // верх, право, низ, лево
+const SIDE = ["Верх", "Право", "Низ", "Лево"];
+const EDGE_TYPES = [
+  { id: 1, thickness: 0.4, label: "0,4", color: "var(--e04)" },
+  { id: 3, thickness: 0.8, label: "0,8", color: "var(--e08)" },
+  { id: 4, thickness: 1, label: "1", color: "var(--e1)" },
+  { id: 2, thickness: 2, label: "2", color: "var(--e2)" }
+];
+const edgeType = id => EDGE_TYPES.find(type => type.id === id);
+const activeEdges = p => p.edgeEnabled === false ? [0, 0, 0, 0] : p.e;
+const formatSize = value => String(Number(value.toPrecision(15))).replace(".", ",");
+function blankSize(p) {
+  const e = activeEdges(p), thickness = k => edgeType(e[k])?.thickness || 0;
+  const subtract = (size, amount) => amount ? Number((size - amount).toPrecision(15)) : size;
+  return {
+    w: subtract(number(p.w), thickness(1) + thickness(3)),
+    h: subtract(number(p.h), thickness(0) + thickness(2)), e
+  };
+}
 const MAX_QUANTITY = 500, MAX_PARTS = 5000;
 const SETTINGS = ["preset", "W", "H", "T", "kerf", "trim", "res"];
 const PRESETS = ["2750x1830", "2800x2070", "2440x1830", "2440x1220", "3050x1220", "custom"];
 
 function normalizePart(p) {
   const value = (x, fallback) => typeof x === "string" || typeof x === "number" ? x : fallback;
+  const e = [0, 1, 2, 3].map(k => Array.isArray(p.e) && [0, ...EDGE_TYPES.map(t => t.id)].includes(p.e[k]) ? p.e[k] : 0);
   return {
     n: typeof p.n === "string" ? p.n : "",
     w: value(p.w, ""), h: value(p.h, ""), q: value(p.q, 1),
     tex: typeof p.tex === "boolean" ? p.tex : true,
-    e: [0, 1, 2, 3].map(k => Array.isArray(p.e) && [0, 1, 2].includes(p.e[k]) ? p.e[k] : 0)
+    edgeEnabled: typeof p.edgeEnabled === "boolean" ? p.edgeEnabled : e.some(Boolean), e
   };
 }
 
@@ -91,30 +109,50 @@ function renderParts() {
     el.innerHTML = `
       <input type="text" placeholder="Наименование (необязательно)" value="${escapeHTML(p.n)}">
       <div class="r2">
-        <div><label>Длина</label><input type="number" inputmode="decimal" min="0" step="any" value="${escapeHTML(p.w)}"></div>
-        <div><label>Ширина</label><input type="number" inputmode="decimal" min="0" step="any" value="${escapeHTML(p.h)}"></div>
+        <div><label>Длина, мм</label><input type="number" inputmode="decimal" min="0" step="any" aria-label="Длина готовой детали ${i + 1}" value="${escapeHTML(p.w)}"></div>
+        <div><label>Ширина, мм</label><input type="number" inputmode="decimal" min="0" step="any" aria-label="Ширина готовой детали ${i + 1}" value="${escapeHTML(p.h)}"></div>
         <div><label>Шт.</label><input type="number" inputmode="numeric" min="1" max="${MAX_QUANTITY}" step="1" value="${escapeHTML(p.q)}"></div>
       </div>
-      <div class="r3">Кромка:
-        ${p.e.map((s, k) => `<button class="eb s${s}" data-k="${k}">${SIDE[k]}${s ? " " + (s == 1 ? "0,4" : "2") : ""}</button>`).join("")}
-        <label style="margin:0 0 0 4px;display:flex;gap:5px;align-items:center"><input type="checkbox" ${p.tex ? "checked" : ""}> текстура</label>
-        <button class="x">×</button>
-      </div>`;
+      <div class="r3">
+        <label class="check-label"><input type="checkbox" ${p.tex ? "checked" : ""}> Текстура (не вращать)</label>
+        <button class="x" aria-label="Удалить деталь ${i + 1}">×</button>
+      </div>
+      <label class="check-label edge-toggle"><input type="checkbox" ${p.edgeEnabled !== false && p.e.some(Boolean) || p.edgeEnabled === true ? "checked" : ""}> Использовать кромку</label>
+      <div class="edge-editor">
+        ${p.e.map((s, k) => `<label class="edge-side side-${k}">${SIDE[k]}
+          <select data-k="${k}" aria-label="Кромка: ${SIDE[k].toLowerCase()}, деталь ${i + 1}">
+            ${[{ id: 0, label: "Нет" }, ...EDGE_TYPES].map(t => `<option value="${t.id}" ${s === t.id ? "selected" : ""}>${t.label}${t.id ? " мм" : ""}</option>`).join("")}
+          </select></label>`).join("")}
+        <div class="edge-preview"><span>Готовая деталь</span><strong class="finished-size"></strong></div>
+      </div>
+      <p class="blank-size" role="status" aria-live="polite"></p>`;
     const ins = el.querySelectorAll("input");
     ins[0].oninput = () => { p.n = ins[0].value; calc(); };
     ins[1].oninput = () => { p.w = ins[1].value; calc(); };
     ins[2].oninput = () => { p.h = ins[2].value; calc(); };
     ins[3].oninput = () => { p.q = ins[3].value; calc(); };
     ins[4].onchange = () => { p.tex = ins[4].checked; haptic(); calc(); };
-    // Тап по стороне кромки: нет → 0,4 → 2 → нет
-    el.querySelectorAll(".eb").forEach(b => b.onclick = () => {
-      const k = +b.dataset.k; p.e[k] = (p.e[k] + 1) % 3;
-      b.className = "eb s" + p.e[k];
-      b.textContent = SIDE[k] + (p.e[k] ? " " + (p.e[k] == 1 ? "0,4" : "2") : "");
+    ins[5].onchange = () => { p.edgeEnabled = ins[5].checked; haptic(); calc(); };
+    el.querySelectorAll("select").forEach(select => select.onchange = () => {
+      p.e[+select.dataset.k] = +select.value;
       haptic(); calc();
     });
     el.querySelector(".x").onclick = () => { parts.splice(i, 1); if (!parts.length) parts.push(newPart()); renderParts(); calc(); };
     $("parts").appendChild(el);
+  });
+}
+function renderPartSizes() {
+  const rows = $("parts").querySelectorAll(".part");
+  parts.forEach((p, i) => {
+    const row = rows[i], size = blankSize(p), w = number(p.w), h = number(p.h);
+    const enabled = p.edgeEnabled === true || p.edgeEnabled !== false && p.e.some(Boolean);
+    row.querySelector(".edge-editor").hidden = !enabled;
+    row.querySelector(".finished-size").textContent = Number.isFinite(w) && w > 0 && Number.isFinite(h) && h > 0 ? `${formatSize(w)} × ${formatSize(h)} мм` : "—";
+    const preview = row.querySelector(".edge-preview");
+    ["Top", "Right", "Bottom", "Left"].forEach((side, k) => preview.style[`border${side}Color`] = edgeType(size.e[k])?.color || "var(--line)");
+    const valid = Number.isFinite(size.w) && Number.isFinite(size.h) && size.w > 0 && size.h > 0;
+    row.querySelector(".blank-size").textContent = valid ? `Размер заготовки: ${formatSize(size.w)} × ${formatSize(size.h)} мм` :
+      Number.isFinite(w) && w > 0 && Number.isFinite(h) && h > 0 ? "Кромка слишком толстая для указанных размеров." : "Введите размеры готовой детали.";
   });
 }
 $("add").onclick = () => { parts.push(newPart()); renderParts(); calc(); };
@@ -212,6 +250,7 @@ function pack(items, W, H, kerf, trim) {
 // ---------- Расчёт ----------
 function calc() {
   saveProject();
+  renderPartSizes();
   validationErrors = [];
   const W = number($("W").value), H = number($("H").value), T = number($("T").value);
   const kerf = number($("kerf").value), trim = number($("trim").value), res = number($("res").value);
@@ -252,22 +291,27 @@ function calc() {
       markInvalid(inputs[1], true); markInvalid(inputs[2], true);
       validationErrors.push(`${label}: размеры слишком велики для расчёта.`);
     }
-    if (widthOK && heightOK && quantityOK) { entries.push({ p, w, h, q }); total += q; }
+    const size = blankSize(p);
+    if (widthOK && heightOK && (size.w <= 0 || size.h <= 0)) {
+      markInvalid(inputs[1], size.w <= 0); markInvalid(inputs[2], size.h <= 0);
+      validationErrors.push(`${label}: после вычета кромки размеры заготовки должны быть больше нуля.`);
+    }
+    if (widthOK && heightOK && quantityOK && size.w > 0 && size.h > 0) { entries.push({ p, w, h, q, size }); total += q; }
   });
   if (total > MAX_PARTS) validationErrors.push(`В проекте допускается не больше ${MAX_PARTS} деталей. Уменьшите количество.`);
   if (validationErrors.length || !entries.length) {
     result = null; cur = 0; renderSummary(); renderMap(); return;
   }
   const items = []; let idx = 1;
-  entries.forEach(({ p, w, h, q }) => {
-    for (let i = 0; i < q; i++) items.push({ id: idx++, name: p.n, w, h, tex: p.tex, e: p.e });
+  entries.forEach(({ p, w, h, q, size }) => {
+    for (let i = 0; i < q; i++) items.push({ id: idx++, name: p.n, w: size.w, h: size.h, finishedW: w, finishedH: h, tex: p.tex, e: size.e });
   });
   const { sheets, failed } = pack(items, W, H, kerf, trim);
-  let used = 0; const edge = { 1: 0, 2: 0 };
+  let used = 0; const edge = Object.fromEntries(EDGE_TYPES.map(t => [t.id, 0]));
   sheets.forEach(s => s.placed.forEach(pl => {
     used += pl.w * pl.h;
-    // Длины сторон считаем по исходной детали: верх/низ = длина, право/лево = ширина
-    [[0, pl.it.w], [1, pl.it.h], [2, pl.it.w], [3, pl.it.h]].forEach(([k, len]) => { if (pl.it.e[k]) edge[pl.it.e[k]] += len; });
+    // Метраж на покупку считаем по готовой детали; раскрой — по размерам заготовки.
+    [[0, pl.it.finishedW], [1, pl.it.finishedH], [2, pl.it.finishedW], [3, pl.it.finishedH]].forEach(([k, len]) => { if (pl.it.e[k]) edge[pl.it.e[k]] += len; });
   }));
   const fill = sheets.length ? used / (sheets.length * W * H) * 100 : 0;
   result = { sheets, failed, fill, edge, res, W, H, T, count: items.length - failed.length };
@@ -283,9 +327,9 @@ function renderSummary() {
   $("nFill").textContent = r ? r.fill.toFixed(0) + "%" : "0%";
   $("nWaste").textContent = r && r.sheets.length ? (100 - r.fill).toFixed(0) + "%" : "0%";
   let e = "—";
-  if (r && (r.edge[1] || r.edge[2])) {
+  if (r && EDGE_TYPES.some(t => r.edge[t.id])) {
     const k = 1 + r.res / 100;
-    e = [r.edge[1] ? `${(r.edge[1] * k / 1000).toFixed(1)} м (0,4)` : "", r.edge[2] ? `${(r.edge[2] * k / 1000).toFixed(1)} м (2)` : ""].filter(Boolean).join(" + ");
+    e = EDGE_TYPES.filter(t => r.edge[t.id]).map(t => `${t.label} мм — ${(r.edge[t.id] * k / 1000).toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 3 })} м`).join(" · ");
   }
   $("nEdge").textContent = e;
   $("warn").textContent = validationErrors.length ? validationErrors.join("\n") :
@@ -307,7 +351,7 @@ function renderMap() {
   $("sheetTabs").querySelectorAll("button").forEach(b => b.onclick = () => { cur = +b.dataset.i; haptic(); renderMap(); });
   const s = r.sheets[cur], W = r.W, H = r.H;
   const fs = Math.round(W / 55), sw = Math.max(4, Math.round(W / 350));        // размер шрифта и толщина кромки в мм-единицах
-  const col = { 1: "var(--e04)", 2: "var(--e2)" };
+  const col = Object.fromEntries(EDGE_TYPES.map(t => [t.id, t.color]));
   const su = s.placed.reduce((a, p) => a + p.w * p.h, 0) / (W * H) * 100;
   const rects = s.placed.map(p => {
     // Кромка рисуется цветной линией вдоль нужной стороны: верх, право, низ, лево
@@ -316,7 +360,7 @@ function renderMap() {
     const nm = p.it.name ? escapeHTML(p.it.name) : "#" + p.it.id;
     const label = p.w > fs * 4 && p.h > fs * 2.4
       ? `<text x="${p.x + fs * .4}" y="${p.y + fs * 1.2}" font-size="${fs}" fill="var(--ink)">${nm}</text>
-         <text x="${p.x + fs * .4}" y="${p.y + fs * 2.4}" font-size="${fs * .9}" fill="var(--mute)">${p.w}×${p.h}</text>` : "";
+         <text x="${p.x + fs * .4}" y="${p.y + fs * 2.4}" font-size="${fs * .9}" fill="var(--mute)">${formatSize(p.w)}×${formatSize(p.h)}</text>` : "";
     const clipId = `label-${p.it.id}`;
     return `<defs><clipPath id="${clipId}"><rect x="${p.x}" y="${p.y}" width="${p.w}" height="${p.h}"/></clipPath></defs>
       <rect x="${p.x}" y="${p.y}" width="${p.w}" height="${p.h}" fill="var(--part)" stroke="var(--acc)" stroke-width="${sw / 3}"/>${lines}<g clip-path="url(#${clipId})">${label}</g>`;
@@ -324,7 +368,8 @@ function renderMap() {
   $("mapBox").innerHTML = `
     <div style="font-size:13px;color:var(--mute);margin-bottom:6px">Лист ${cur + 1} из ${r.sheets.length} · ${W}×${H}×${r.T} мм · занято ${su.toFixed(0)}% · деталей ${s.placed.length}</div>
     <svg viewBox="0 0 ${W} ${H}">${rects}</svg>
-    <div class="leg"><span><i class="sw" style="background:var(--e04)"></i>кромка 0,4 мм</span><span><i class="sw" style="background:var(--e2)"></i>кромка 2 мм</span><span><i class="sw" style="background:var(--part)"></i>деталь</span><span><i class="sw" style="background:var(--waste)"></i>отход</span></div>`;
+    <p class="hint">На карте указаны размеры заготовок для распила.</p>
+    <div class="leg">${EDGE_TYPES.map(t => `<span><i class="sw" style="background:${t.color}"></i>кромка ${t.label} мм</span>`).join("")}<span><i class="sw" style="background:var(--part)"></i>деталь</span><span><i class="sw" style="background:var(--waste)"></i>отход</span></div>`;
 }
 
 renderParts(); calc();

@@ -10,6 +10,8 @@
     --part: color-mix(in srgb, var(--acc) 24%, var(--bg));   /* заливка деталей на карте */
     --waste: color-mix(in srgb, var(--mute) 14%, var(--bg)); /* цвет отхода */
     --e04: #f08a24;   /* кромка 0,4 мм */
+    --e08: #19876b;   /* кромка 0,8 мм */
+    --e1: #7856c5;    /* кромка 1 мм */
     --e2:  #d6336c;   /* кромка 2 мм */
     --warn: #e5484d;
   }
@@ -23,7 +25,8 @@
   .sum { position: sticky; top: 0; z-index: 5; background: var(--bg); padding: 10px 0 8px; border-bottom: 1px solid var(--line); }
   .bar { height: 14px; border-radius: 7px; background: var(--waste); overflow: hidden; }
   .bar i { display: block; height: 100%; width: 0; background: var(--acc); transition: width .25s; }
-  .nums { display: flex; justify-content: space-between; gap: 8px; margin-top: 6px; font-size: 13px; color: var(--mute); }
+  .nums { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-top: 6px; font-size: 13px; color: var(--mute); }
+  .nums > span:last-child { flex-basis: 100%; }
   .nums b { color: var(--ink); font-size: 16px; }
   .warn { color: var(--warn); font-size: 13px; margin-top: 6px; white-space: pre-line; }
   .hint { color: var(--mute); font-size: 12px; margin: 8px 0; }
@@ -45,9 +48,20 @@
   .part { background: var(--bg); border-radius: 10px; padding: 10px; margin-bottom: 8px; }
   .r2 { display: grid; grid-template-columns: 1fr 1fr 64px; gap: 6px; margin-top: 6px; }
   .r3 { display: flex; align-items: center; gap: 6px; margin-top: 8px; flex-wrap: wrap; font-size: 12px; color: var(--mute); }
-  .eb { min-width: 44px; height: 34px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink); font: inherit; font-size: 12px; }
-  .eb.s1 { background: var(--e04); border-color: var(--e04); color: #fff; }
-  .eb.s2 { background: var(--e2); border-color: var(--e2); color: #fff; }
+  .check-label { display: flex; align-items: center; gap: 7px; margin: 0; font-size: 13px; color: var(--ink); }
+  .check-label input { width: 18px; height: 18px; accent-color: var(--acc); flex-shrink: 0; }
+  .edge-toggle { margin-top: 12px; }
+  .edge-editor { display: grid; grid-template-columns: minmax(70px, 1fr) minmax(88px, 1.25fr) minmax(70px, 1fr); grid-template-rows: auto minmax(82px, auto) auto; gap: 6px; margin-top: 12px; }
+  .edge-side { margin: 0; text-align: center; min-width: 0; }
+  .edge-side select { padding: 8px 4px; background: var(--card); font-size: 14px; min-height: 40px; }
+  .side-0 { grid-area: 1 / 2; }
+  .side-1 { grid-area: 2 / 3; align-self: center; }
+  .side-2 { grid-area: 3 / 2; }
+  .side-3 { grid-area: 2 / 1; align-self: center; }
+  .edge-preview { grid-area: 2 / 2; border: 4px solid var(--line); border-radius: 5px; background: var(--part); display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 5px; padding: 5px; text-align: center; min-width: 0; }
+  .edge-preview span { color: var(--mute); font-size: 10px; }
+  .edge-preview strong { font-size: 12px; overflow-wrap: anywhere; }
+  .blank-size { margin: 10px 0 0; padding: 9px; background: var(--card); border-radius: 7px; font-size: 13px; }
   .x { margin-left: auto; border: 0; background: none; color: var(--mute); font-size: 22px; padding: 0 6px; }
   .btn { width: 100%; padding: 12px; border-radius: 10px; border: 0; background: var(--acc); color: var(--accfg); font: inherit; font-weight: 600; }
   .btn.ghost { background: var(--bg); color: var(--ink); border: 1px dashed var(--line); margin-top: 8px; }

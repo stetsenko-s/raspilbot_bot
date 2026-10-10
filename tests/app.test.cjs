@@ -29,6 +29,12 @@ class Element {
       for (const [, key, value] of tag.matchAll(/data-(\w+)="([^"]*)"/g)) button.dataset[key] = value;
       return button;
     });
+    this.selects = [...html.matchAll(/<select\b([^>]*)>([\s\S]*?)<\/select>/g)].map(([, tag, options]) => {
+      const select = new Element(options.match(/value="([^"]*)" selected/)?.[1] || "0");
+      select.dataset.k = tag.match(/data-k="([^"]*)"/)?.[1];
+      return select;
+    });
+    this.nodes = new Map([".edge-editor", ".edge-preview", ".finished-size", ".blank-size"].map(selector => [selector, new Element()]));
   }
   get innerHTML() { return this.html || ""; }
   querySelectorAll(selector) {
@@ -36,16 +42,18 @@ class Element {
     if (selector === ".part") return this.children;
     if (selector === ".eb") return (this.buttons || []).filter(b => b.dataset.k !== undefined);
     if (selector === "button") return this.buttons || [];
+    if (selector === "select") return this.selects || [];
     throw new Error("Unknown selector: " + selector);
   }
   querySelector(selector) {
     if (selector === ".x") return this.buttons.at(-1);
+    if (this.nodes?.has(selector)) return this.nodes.get(selector);
     throw new Error("Unknown selector: " + selector);
   }
 }
 
 function app(stored = {}) {
-  const values = { preset: "2750x1830", T: "16", kerf: "4", trim: "10", res: "10" };
+  const values = { preset: "2750x1830", T: "16", kerf: "4", trim: "10", res: "0" };
   const elements = new Map();
   const get = id => {
     if (!elements.has(id)) elements.set(id, new Element(values[id] || ""));
@@ -181,7 +189,8 @@ test("Смешанный импорт добавляет только корре
 test("Поворот и метраж кромки сохраняют исходные стороны", () => {
   const a = app(); a.sheet(100, 60); a.part({ w: 50, h: 90, tex: false, e: [1, 2, 0, 0] });
   assert.equal(a.run("result.count"), 1);
-  assert.equal(a.run("result.sheets[0].placed[0].w"), 90);
+  assert.equal(a.run("result.sheets[0].placed[0].w"), 89.6);
+  assert.equal(a.run("result.sheets[0].placed[0].h"), 48);
   assert.equal(a.run("result.edge[1]"), 50);
   assert.equal(a.run("result.edge[2]"), 90);
   a.part({ w: 50, h: 90, tex: true });
@@ -221,15 +230,15 @@ test("Дробные детали и пропил ровно заполняют 
     const a = app(); a.sheet(vertical ? 1830 : 2750, vertical ? 2750 : 1830, 3.2, 10);
     const parts = [1000.1, 1726.7].map(size => ({
       n: "", w: vertical ? 1810 : size, h: vertical ? size : 1810,
-      q: 1, tex: true, e: [1, 2, 0, 0]
+      q: 1, tex: true, e: [0, 0, 0, 0]
     }));
     a.run(`parts = ${JSON.stringify(parts)}; renderParts(); calc();`);
     assert.equal(a.run("result.sheets.length"), 1);
     assert.equal(a.run("result.count"), 2);
     assert.equal(a.run("result.failed.length"), 0);
     assert.equal(a.run("result.sheets[0].free.length"), 0);
-    assert.equal(a.run("result.edge[1]"), vertical ? 3620 : 2726.8);
-    assert.equal(a.run("result.edge[2]"), vertical ? 2726.8 : 3620);
+    assert.equal(a.run("result.edge[1]"), 0);
+    assert.equal(a.run("result.edge[2]"), 0);
   }
 });
 
@@ -242,4 +251,82 @@ test("Допуск дробных вычислений не разрешает �
   const a = app(); a.sheet(2750, 1830, 3.2, 10);
   a.run('parts = [1000.1, 1726.701].map(w => ({...newPart(), w, h: 1810})); renderParts(); calc();');
   assert.equal(a.run("result.sheets.length"), 2);
+});
+
+test("Четыре толщины уменьшают заготовку и считают метраж по готовой детали", () => {
+  const a = app(); a.sheet(1000, 1000); a.part({ w: 600, h: 300, q: 3, e: [1, 3, 4, 2] });
+  assert.equal(a.run("result.sheets[0].placed[0].w"), 597.2);
+  assert.equal(a.run("result.sheets[0].placed[0].h"), 298.6);
+  for (const [id, mm] of [[1, 1800], [3, 900], [4, 1800], [2, 900]]) assert.equal(a.run(`result.edge[${id}]`), mm);
+  assert.equal(a.run("parts[0].w"), 600);
+  assert.equal(a.run("parts[0].h"), 300);
+  assert.match(a.get("nEdge").textContent, /0,4 мм — 1,80 м/);
+  assert.match(a.get("nEdge").textContent, /0,8 мм — 0,90 м/);
+  assert.match(a.get("nEdge").textContent, /1 мм — 1,80 м/);
+  assert.match(a.get("nEdge").textContent, /2 мм — 0,90 м/);
+  a.get("res").value = "10"; a.run("calc()");
+  assert.match(a.get("nEdge").textContent, /0,4 мм — 1,98 м/);
+});
+
+test("Кромка на каждой стороне вычитается по соответствующей оси", () => {
+  for (const [k, w, h] of [[0, 600, 299], [1, 599, 300], [2, 600, 299], [3, 599, 300]]) {
+    const a = app(); a.sheet(1000, 1000);
+    const e = [0, 0, 0, 0]; e[k] = 4;
+    a.part({ w: 600, h: 300, e });
+    assert.equal(a.run("result.sheets[0].placed[0].w"), w);
+    assert.equal(a.run("result.sheets[0].placed[0].h"), h);
+  }
+  const a = app(); a.sheet(1000, 1000); a.part({ w: 600, h: 300, e: [4, 4, 4, 4] });
+  assert.equal(a.run("result.sheets[0].placed[0].w"), 598);
+  assert.equal(a.run("result.sheets[0].placed[0].h"), 298);
+});
+
+test("Выключение кромки восстанавливает размеры и сохраняет выбор сторон", () => {
+  const a = app(); a.sheet(1000, 1000); a.part({ w: 600, h: 300, edgeEnabled: true, e: [1, 3, 4, 2] });
+  const row = a.get("parts").children[0];
+  row.inputs[5].checked = false; row.inputs[5].onchange();
+  assert.equal(a.run("result.sheets[0].placed[0].w"), 600);
+  assert.equal(a.run("result.sheets[0].placed[0].h"), 300);
+  assert.equal(a.get("nEdge").textContent, "—");
+  assert.equal(row.querySelector(".edge-editor").hidden, true);
+  row.inputs[5].checked = true; row.inputs[5].onchange();
+  assert.equal(a.run("result.sheets[0].placed[0].w"), 597.2);
+  assert.equal(row.querySelector(".edge-editor").hidden, false);
+  for (let i = 0; i < 5; i++) a.run("calc()");
+  assert.equal(a.run("parts[0].w"), 600);
+  assert.equal(a.run("result.sheets[0].placed[0].w"), 597.2);
+  row.selects[3].value = "0"; row.selects[3].onchange();
+  assert.equal(a.run("result.sheets[0].placed[0].w"), 599.2);
+  assert.equal(a.run("result.edge[2]"), 0);
+});
+
+test("Кромка, съедающая всю заготовку, вызывает ошибку", () => {
+  const a = app(); a.sheet(); a.part({ w: 4, h: 20, e: [0, 2, 0, 2] });
+  assert.equal(a.run("result"), null);
+  assert.match(a.get("warn").textContent, /после вычета кромки/);
+  assert.equal(a.get("parts").children[0].inputs[1].attributes["aria-invalid"], "true");
+});
+
+test("Старые коды кромки сохраняют толщину, новые и выключенный выбор восстанавливаются", () => {
+  const old = app({ "cut-project": JSON.stringify({ version: 1, parts: [{ w: 600, h: 300, q: 1, e: [1, 2, 0, 0] }], settings: { res: "10" } }) });
+  assert.equal(old.run("parts[0].edgeEnabled"), true);
+  assert.equal(old.run("result.sheets[0].placed[0].w"), 598);
+  assert.equal(old.run("result.sheets[0].placed[0].h"), 299.6);
+  assert.equal(old.get("res").value, "10");
+  const a = app(); a.part({ w: 600, h: 300, edgeEnabled: false, e: [1, 3, 4, 2] });
+  const restored = app(Object.fromEntries(a.storage));
+  assert.equal(restored.run("parts[0].edgeEnabled"), false);
+  assert.equal(restored.run("parts[0].e.join(',')"), "1,3,4,2");
+  assert.equal(restored.run("result.sheets[0].placed[0].w"), 600);
+  assert.equal(restored.get("res").value, "0");
+});
+
+test("Размер заготовки определяет вместимость, метраж непоместившихся не добавляется", () => {
+  const a = app(); a.sheet(598, 298);
+  a.part({ w: 600, h: 300, e: [4, 4, 4, 4] });
+  assert.equal(a.run("result.count"), 1);
+  assert.equal(a.run("result.edge[4]"), 1800);
+  a.sheet(597, 298); a.run("calc()");
+  assert.equal(a.run("result.failed.length"), 1);
+  assert.equal(a.run("result.edge[4]"), 0);
 });

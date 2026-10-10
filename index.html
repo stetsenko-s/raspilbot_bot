@@ -40,11 +40,12 @@
       <div><label>Толщина, мм</label><input id="T" type="number" inputmode="decimal" min="0" step="any" value="16"></div>
       <div><label>Пропил, мм</label><input id="kerf" type="number" inputmode="decimal" min="0" step="any" value="4"></div>
       <div><label>Обрезка листа, мм</label><input id="trim" type="number" inputmode="decimal" min="0" step="any" value="10"></div>
-      <div><label>Запас кромки, %</label><input id="res" type="number" inputmode="decimal" min="0" step="any" value="10"></div>
+      <div><label>Запас кромки, %</label><input id="res" type="number" inputmode="decimal" min="0" step="any" value="0"></div>
     </div>
 
     <div class="card">
       <h2>Детали</h2>
+      <p class="hint">Введите размеры готовых деталей в мм. Заготовка для распила уменьшается на толщину кромки с выбранных сторон.</p>
       <p class="hint">Количество: от 1 до 500 шт. в строке, максимум 5000 деталей в проекте.</p>
       <div id="parts"></div>
       <button class="btn" id="add">+ Добавить деталь</button>
@@ -56,6 +57,7 @@
       </details>
     </div>
   </div>
+  <p class="hint">Метраж кромки считается по размерам готовых деталей, отдельно для каждой толщины и с учётом запаса. Детали, которые не помещаются, в метраж не входят.</p>
 
   <!-- Карта раскроя под полями ввода -->
   <div id="viewMap">
